@@ -23,7 +23,7 @@ export default function LoginScreen() {
     const [email, setEmail] = useState('');
     const [password, setPassword] = useState('');
 
-    const { signIn } = useContext(AuthContext);
+    const { signIn, signUp } = useContext(AuthContext);
 
     return (
         <>
@@ -48,19 +48,16 @@ export default function LoginScreen() {
                         onChangeText={setPassword}
                     />
                     <Button
-                        style={styles.loginButton}
+                        style={styles.button}
                         mode="contained"
-                        onPress={signIn}>
-                        Login / sign up
+                        onPress={() => { signIn({ email, password }) }}>
+                        Login
                     </Button>
-                    <Divider style={{ marginTop: 24, backgroundColor: 'white' }} />
                     <Button
-                        style={styles.googleButton}
-                        color='white'
-                        icon='google'
+                        style={styles.button}
                         mode="contained"
-                        onPress={() => { }}>
-                        Continue with google
+                        onPress={() => { signUp({ email, password }) }}>
+                        Sign Up
                     </Button>
                 </View>
             </ImageBackground>
@@ -82,10 +79,7 @@ const styles = StyleSheet.create({
         color: 'white',
         textAlign: 'center',
     },
-    loginButton: {
+    button: {
         marginTop: 16,
-    },
-    googleButton: {
-        marginTop: 24,
     }
 })

@@ -5,10 +5,13 @@ import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { NavigationContainer } from '@react-navigation/native';
 import { createStackNavigator } from '@react-navigation/stack';
 import AsyncStorage from '@react-native-community/async-storage';
+import { http } from './services/http'
+import { URLS as urls } from './resources/urls'
 
 import SplashScreen from './modules/SplashScreen'
 import LoginScreen from './modules/LoginScreen'
 import HomeScreen from './modules/HomeScreen'
+import JwtDecode from 'jwt-decode';
 
 const theme = {
   ...DefaultTheme,
@@ -59,42 +62,91 @@ export default function App({ navigation }) {
       let userToken;
 
       try {
-        userToken = await AsyncStorage.getItem('userToken');
+        let user = JSON.parse(await AsyncStorage.getItem('user'));
+
+        let decoded = JwtDecode(user.accessToken);
+
+        let exp = new Date(decoded.exp * 1000);
+
+        let timeDiff = exp - (new Date());
+
+        let hours = timeDiff / (1000 * 60 * 60);
+
+        if (hours < 1) {
+          try {
+            let auth = JSON.parse(await AsyncStorage.getItem('auth'));
+            const { data: result } = await http.post(urls.AUHTENTICATION(), {
+              strategy: 'local',
+              email: auth.clientId,
+              password: auth.clientSecret
+            });
+
+            await AsyncStorage.setItem('user', JSON.stringify(result));
+
+            user = result;
+          } catch (e) {
+          }
+        }
+
+        userToken = user.accessToken;
       } catch (e) {
       }
-
-      //TODO: Validate token
-
-      setTimeout(function () { }, 30000);
 
       dispatch({ type: 'RESTORE_TOKEN', token: userToken });
     };
 
-    setTimeout(function () { bootstrapAsync(); }, 3000);
+    bootstrapAsync();
   }, []);
 
   const authContext = useMemo(
     () => ({
       signIn: async data => {
-        //TODO: send clientId and clientSecret and retrieve the accessToken
+        try {
+          const { data: result } = await http.post(urls.AUHTENTICATION(), {
+            strategy: 'local',
+            email: data.email,
+            password: data.password
+          });
 
-        await AsyncStorage.setItem('userToken', 'dummy-auth-token');
+          await AsyncStorage.setItem('user', JSON.stringify(result));
+          await AsyncStorage.setItem('auth', JSON.stringify({
+            clientId: data.email,
+            clientSecret: data.password
+          }));
 
-        dispatch({ type: 'SIGN_IN', token: 'dummy-auth-token' });
+          dispatch({ type: 'SIGN_IN', token: result.accessToken });
+        } catch (e) {
+          alert(e);
+        }
       },
       signOut: async () => {
-        await AsyncStorage.removeItem('userToken');
+        await AsyncStorage.removeItem('user');
+        await AsyncStorage.removeItem('auth');
 
         dispatch({ type: 'SIGN_OUT' })
       },
       signUp: async data => {
-        //TODO: send clientId and clientSecret and retrieve the accessToken
+        try {
+          const { data: resultUserCreation } = await http.post(urls.USERS(), data);
+          const { data: result } = await http.post(urls.AUHTENTICATION(), {
+            strategy: 'local',
+            email: data.email,
+            password: data.password
+          });
 
-        dispatch({ type: 'SIGN_IN', token: 'dummy-auth-token' });
+
+          await AsyncStorage.setItem('user', JSON.stringify(result));
+          await AsyncStorage.setItem('auth', JSON.stringify({
+            clientId: data.email,
+            clientSecret: data.password
+          }));
+
+          dispatch({ type: 'SIGN_IN', token: result.accessToken });
+        } catch (e) {
+          alert(e);
+        }
       },
-    }),
-    []
-  );
+    }), []);
 
   if (state.isLoading) {
     // We haven't finished checking for the token yet
