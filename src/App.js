@@ -4,14 +4,20 @@ import { DefaultTheme, Provider as PaperProvider } from 'react-native-paper';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { NavigationContainer } from '@react-navigation/native';
 import { createStackNavigator } from '@react-navigation/stack';
+import { createMaterialBottomTabNavigator } from '@react-navigation/material-bottom-tabs';
+import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
 import AsyncStorage from '@react-native-community/async-storage';
+import JwtDecode from 'jwt-decode';
 import { http } from './services/http'
 import { URLS as urls } from './resources/urls'
 
 import SplashScreen from './modules/SplashScreen'
 import LoginScreen from './modules/LoginScreen'
-import HomeScreen from './modules/HomeScreen'
-import JwtDecode from 'jwt-decode';
+import TasksScreen from './modules/TasksScreen'
+import CompletedScreen from './modules/CompletedScreen'
+import InfoScreen from './modules/InfoScreen'
+import { Alert } from 'react-native';
+
 
 const theme = {
   ...DefaultTheme,
@@ -23,6 +29,7 @@ const theme = {
 };
 
 const Stack = createStackNavigator();
+const Tab = createMaterialBottomTabNavigator();
 
 export const AuthContext = createContext();
 
@@ -116,7 +123,8 @@ export default function App({ navigation }) {
 
           dispatch({ type: 'SIGN_IN', token: result.accessToken });
         } catch (e) {
-          alert(e);
+          const { code, message } = e.response.data
+          Alert.alert(`Error code - ${code}`, message);
         }
       },
       signOut: async () => {
@@ -127,7 +135,7 @@ export default function App({ navigation }) {
       },
       signUp: async data => {
         try {
-          const { data: resultUserCreation } = await http.post(urls.USERS(), data);
+          await http.post(urls.USERS(), data);
           const { data: result } = await http.post(urls.AUHTENTICATION(), {
             strategy: 'local',
             email: data.email,
@@ -143,7 +151,8 @@ export default function App({ navigation }) {
 
           dispatch({ type: 'SIGN_IN', token: result.accessToken });
         } catch (e) {
-          alert(e);
+          const { code, message, errors } = e.response.data
+          Alert.alert(`Error code - ${code}`, message + `\n${errors.email}`);
         }
       },
     }), []);
@@ -159,8 +168,8 @@ export default function App({ navigation }) {
         <PaperProvider theme={theme}>
           <NavigationContainer>
             <AuthContext.Provider value={authContext}>
-              <Stack.Navigator>
-                {state.userToken == null ? (
+              {state.userToken == null ? (
+                <Stack.Navigator>
                   <Stack.Screen
                     name="Login"
                     component={LoginScreen}
@@ -168,13 +177,41 @@ export default function App({ navigation }) {
                       headerShown: false,
                       animationTypeForReplace: state.isSignout ? 'pop' : 'push',
                     }} />
-                ) : (
-                    <Stack.Screen
-                      name="Home"
-                      component={HomeScreen}
-                      options={{ headerShown: false }} />
-                  )}
-              </Stack.Navigator>
+                </Stack.Navigator>
+              ) : (
+                  <Tab.Navigator
+                    options={{ headerShown: false }}
+                    shifting
+                    barStyle={{ backgroundColor: theme.colors.primary }}>
+                    <Tab.Screen
+                      name="Tasks"
+                      component={TasksScreen}
+                      options={{
+                        tabBarIcon: ({ color }) => (
+                          <Icon name='playlist-edit' color={color} size={24} />
+                        )
+                      }}
+                    />
+                    <Tab.Screen
+                      name="Completed"
+                      component={CompletedScreen}
+                      options={{
+                        tabBarIcon: ({ focused, color }) => (
+                          <Icon name={focused ? 'check-circle' : 'check-circle-outline'} color={color} size={24} />
+                        )
+                      }}
+                    />
+                    <Tab.Screen
+                      name="Info"
+                      component={InfoScreen}
+                      options={{
+                        tabBarIcon: ({ focused, color }) => (
+                          <Icon name={focused ? 'information' : 'information-outline'} color={color} size={24} />
+                        )
+                      }}
+                    />
+                  </Tab.Navigator>
+                )}
             </AuthContext.Provider>
           </NavigationContainer>
         </PaperProvider>
