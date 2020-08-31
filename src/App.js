@@ -83,7 +83,6 @@ export default function App({ navigation }) {
           try {
             let auth = JSON.parse(await AsyncStorage.getItem('auth'));
             const { data: result } = await http.post(urls.AUHTENTICATION(), {
-              strategy: 'local',
               email: auth.clientId,
               password: auth.clientSecret
             });
